@@ -1,12 +1,9 @@
 name: Build and Publish Docker Images
 
 on:
-  release:
-    types: [published]
-
   push:
     branches:
-      - develop
+      - emoji-notify
     # Only build the image when a file in the image is updated
     # These paths are files in the git repository from
     # .dockerignore (except the Docker files)
@@ -43,28 +40,26 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # A new tagged release is published, which builds :tag and :latest
-      - name: Build and push :tag
-        if: github.event_name == 'release'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:${{ github.event.release.tag_name }}
-            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:latest
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          # Don't use the cache for release images to ensure everything is up to date
+      - name: Set some tags
+        id: vars
+        run: |
+          DATE_TAG=$(date +%Y%m%d)
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
-      # Develop branch push, which builds :develop
-      - name: Build and push :develop
+      - name: Build and push my version
         if: github.event_name == 'push'
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:develop
+            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:emoji-notify
+            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:${SHORT_SHA}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:${DATE_TAG}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/auto-southwest-check-in:latest
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
