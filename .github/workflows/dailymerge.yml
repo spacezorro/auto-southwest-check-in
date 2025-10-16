@@ -1,0 +1,56 @@
+name: Resync Upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *' 
+  workflow_dispatch: 
+
+jobs:
+  resync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/jdholtz/auto-southwest-check-in.git
+          git fetch upstream
+
+      - name: Set up Repo for merge
+        run: |
+          git checkout emoji-notify
+          git checkout upstream/master -- .github/workflows/docker.yml
+        continue-on-error: true 
+
+      - name: Merge upstream/master
+        id: merge
+        run: |
+          git merge --squash upstream/master
+          echo "merge_success=$?" >> $GITHUB_OUTPUT
+          git checkout HEAD -- .github/workflows/docker.yml
+        continue-on-error: true # Continue to notify on failure
+
+      - name: Commit if Merge was successful
+        if: steps.merge.outputs.merge_success == '0'
+        run: |
+          git commit -m "AutoSync Fork" || echo "No changes to commit"
+        continue-on-error: true
+
+      - name: Push merged changes
+        if: steps.merge.outputs.merge_success == '0'
+        run: |
+          git push origin emoji-notify
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+
+      - name: Notify on merge failure via Docker webhook
+        if: steps.merge.outputs.merge_success != '0'
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"repository": "${{ github.repository }}", "message": "Failed to automerge due to conflicts"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+        continue-on-error: true
