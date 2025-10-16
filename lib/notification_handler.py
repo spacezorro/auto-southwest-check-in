@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import apprise
 import requests
+from datetime import datetime, timedelta
 
 from .log import get_logger
 from .utils import LoginError, NotificationLevel, RequestError
@@ -158,21 +159,47 @@ class NotificationHandler:
         self.send_notification(error_message, NotificationLevel.ERROR)
 
     def successful_checkin(self, boarding_pass: dict[str, Any], flight: Flight) -> None:
-        success_message = (
-            f"Successfully checked in to flight from '{flight.departure_airport}' to "
-            f"'{flight.destination_airport}' for {self._get_account_name()}!\n"
-        )
+        success_header = ""
+        success_message = ""
+        for flight_info in boarding_pass['flights']:
+            for passenger in flight_info['passengers']:
+              if passenger["boardingGroup"] is not None:
+                try:
+                    passenger_name = passenger['name']
+                    boarding_group = passenger['boardingGroup']
+                    boarding_position = passenger['boardingPosition']
+                    confirmation_number = passenger['confirmationNumber']
+                    boarding_emoji = {"A": '\U0001F60E', "B": '\U0001F610', "C": '\U0001F641'}.get(boarding_group, "!")
+                    dest_airport = flight_info['destinationAirportCode']
+                    origin_airport = flight_info['originAirportCode']
+                    flight_number = flight_info['flightNumber']
+                    travel_time = flight_info['travelTime']
+                    gate = flight_info['gate']
 
-        for flight_info in boarding_pass["flights"]:
-            for passenger in flight_info["passengers"]:
-                if passenger["boardingGroup"] is not None:
-                    success_message += (
-                        f"{passenger['name']} got "
+                    departure_time = datetime.strptime(flight_info['departureTime'], '%H:%M').strftime('%I:%M%p')
+
+                    dest_tz = flight._get_airport_timezone(dest_airport)
+                    orig_tz = flight._get_airport_timezone(origin_airport)
+                    travel_h = int(datetime.strptime(travel_time, '%Hh %Mm').strftime('%H'))
+                    travel_m = int(datetime.strptime(travel_time, '%Hh %Mm').strftime('%M'))
+                    travel_s = datetime.strptime(flight_info['departureTime'], '%H:%M')
+                    travel_d = timedelta(hours=travel_h, minutes=travel_m)
+                    flight_time = orig_tz.localize(travel_s + travel_d).astimezone(dest_tz).strftime('%I:%M%p')
+
+                    success_header += f"{passenger_name}\nConf: {confirmation_number}\n" if f"{passenger_name}\nConf: {confirmation_number}\n" not in success_header else ""
+                    success_message += f"\nBoarding {boarding_group}{boarding_position}{boarding_emoji}\n"
+                    success_message += f"\U0001F6EB{origin_airport:7s} \U00000023\U0000FE0F\U000020E3{flight_number:6s} \U0001F6A7{gate}\n"
+                    success_message += f"\U0001F680{departure_time:7s} \U000023F3{travel_time}\n"
+                    success_message += f"\U0001F6EC{dest_airport:7s} \U0000231A{flight_time}\n"
+                except Exception as e:
+                    logger.debug('Something went wrong generating fancy message... Using fallback')
+                    success_message = (
+                        f"{passenger['name']} ({passenger['confirmationNumber']}) got "
                         f"{passenger['boardingGroup']}{passenger['boardingPosition']}!\n"
                     )
 
         logger.debug("Sending successful check-in notification...")
-        self.send_notification(success_message, NotificationLevel.CHECKIN)
+        self.send_notification(f"{success_header}{success_message}\n", NotificationLevel.CHECKIN)
 
     def failed_checkin(self, error: RequestError, flight: Flight) -> None:
         error_message = (
