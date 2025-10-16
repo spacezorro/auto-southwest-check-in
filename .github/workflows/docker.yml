@@ -41,13 +41,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Set some tags
-        id: vars
-        run: |
-          DATE_TAG=$(date +%Y%m%d)
-          SHORT_SHA=${GITHUB_SHA::7}
-          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha,prefix=,format=short
+            type=schedule,pattern={{date 'YYMMDD'}}
 
       - name: Build and push my version
         if: github.event_name == 'push'
@@ -55,12 +58,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:emoji-notify
-            ghcr.io/${{ github.repository }}:${SHORT_SHA}
-            ghcr.io/${{ github.repository }}:${DATE_TAG}
-            ghcr.io/${{ github.repository }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push=true
