@@ -7,6 +7,12 @@ on:
     inputs:
       branch:
         default: 'emoji-notify'
+      upstream:
+        description: 'upstream repo to merge to "jdholtz", "dmytrokoren"...'
+        default: 'jdholtz'
+      remote_branch:
+        description: 'upstream branch to merge to "master", "develop", "fix-a-thing"...'
+        default: 'master'
       commit_message:
         description: 'Commit message template (use {date} for date, e.g., Submodule changed {date})'
         default: 'Upstream changed {date}' 
@@ -16,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH: ${{ github.event.inputs.branch }}
+      UPSTREAM:  ${{ github.event.inputs.upstream }}
+      REMOTE_BRANCH: ${{ github.event.inputs.remote_branch }}
       COMMIT_MESSAGE: ${{ github.event.inputs.commit_message }}
     steps:
       - name: Checkout 
@@ -28,13 +36,13 @@ jobs:
 
       - name: Add upstream remote
         run: |
-          git remote add upstream https://github.com/jdholtz/auto-southwest-check-in.git
+          git remote add upstream https://github.com/$UPSTREAM/auto-southwest-check-in.git
           git fetch upstream
 
       - name: Set up Repo for merge
         run: |
-          git checkout emoji-notify
-          git checkout upstream/master -- .github/workflows/docker.yml
+          git checkout $BRANCH
+          git checkout upstream/$REMOTE_BRANCH -- .github/workflows/docker.yml
         continue-on-error: true 
 
       - name: Merge upstream/master
@@ -51,6 +59,7 @@ jobs:
           COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed "s/{date}/$(date -u +%Y-%m-%d)/g")
           git commit -m "$COMMIT_MESSAGE" || echo "No changes to commit"
         env:
+          GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
           GIT_AUTHOR_NAME: "github-actions[bot]"
           GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
           GIT_COMMITTER_NAME: "github-actions[bot]"
@@ -60,7 +69,7 @@ jobs:
       - name: Push merged changes
         if: steps.merge.outputs.merge_success == '0'
         run: |
-          git push origin emoji-notify
+          git push origin emoji-notify || echo "No changes to commit"
         env:
           GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
           GIT_AUTHOR_NAME: "github-actions[bot]"
