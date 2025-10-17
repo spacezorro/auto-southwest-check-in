@@ -6,7 +6,7 @@ on:
   workflow_dispatch: 
     inputs:
       branch:
-        default: 'main'
+        default: 'emoji-notify'
       commit_message:
         description: 'Commit message template (use {date} for date, e.g., Submodule changed {date})'
         default: 'Upstream changed {date}' 
