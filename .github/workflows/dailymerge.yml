@@ -59,10 +59,7 @@ jobs:
           COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed "s/{date}/$(date -u +%Y-%m-%d)/g")
           git commit -m "$COMMIT_MESSAGE" || echo "No changes to commit"
         env:
-<<<<<<< HEAD
           GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
-=======
->>>>>>> a72034b (Fix Workflow)
           GIT_AUTHOR_NAME: "github-actions[bot]"
           GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
           GIT_COMMITTER_NAME: "github-actions[bot]"
