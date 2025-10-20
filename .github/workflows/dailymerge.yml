@@ -21,10 +21,10 @@ jobs:
   resync-upstream:
     runs-on: ubuntu-latest
     env:
-      BRANCH: ${{ github.event.inputs.branch }}
-      UPSTREAM:  ${{ github.event.inputs.upstream }}
-      REMOTE_BRANCH: ${{ github.event.inputs.remote_branch }}
-      COMMIT_MESSAGE: ${{ github.event.inputs.commit_message }}
+      BRANCH: ${{ github.event.inputs.branch || 'emoji-notify' }}
+      UPSTREAM:  ${{ github.event.inputs.upstream || 'jdholtz' }}
+      REMOTE_BRANCH: ${{ github.event.inputs.remote_branch || 'master' }}
+      COMMIT_MESSAGE: ${{ github.event.inputs.commit_message || 'Upstream changed {date}' }}
     steps:
       - name: Checkout 
         uses: actions/checkout@v5
